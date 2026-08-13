@@ -1,29 +1,19 @@
 # jupyter base image
-FROM quay.io/jupyter/scipy-notebook:lab-4.1.5 AS jupyter
+FROM ghcr.io/diogenesanalytics/scipy-notebook:master AS jupyter
 
-# install python libraries available in conda
-RUN mamba install --yes \
-    'jupyterlab-spellchecker=0.8.4' && \
-    mamba clean --all -f -y && \
-    fix-permissions "${CONDA_DIR}" && \
-    fix-permissions "/home/${NB_USER}"
+# change to dir for storing files
+WORKDIR /usr/local/src/blog_template
 
-# build argument for the CLI tool project path
-ARG HOST_PROJECT_PATH=_jupyter/scripts/filter_notebook
-ARG CONT_PROJECT_PATH=/usr/local/src/filter_notebook
+# get files
+COPY --chown=${NB_UID}:${NB_GID} pyproject.toml poetry.lock ./
 
-# copy just the package source to /opt
-COPY ${HOST_PROJECT_PATH} ${CONT_PROJECT_PATH}
+# now install poetry deps
+RUN poetry config virtualenvs.create false && \
+    poetry install --with utils --no-root
 
-# install it as a package
-USER root
-RUN pip install --no-cache-dir ${CONT_PROJECT_PATH}
-
-# install pip only libraries
-RUN pip install --no-cache-dir git+https://github.com/DiogenesAnalytics/blog_utils
-
-# switch back to default Jupyter user
+# switch back to default Jupyter user and workdir
 USER ${NB_USER}
+WORKDIR "${HOME}"
 
 # test base image
 FROM python:3.11 AS testing
@@ -34,17 +24,17 @@ ARG DCKRSRC
 # install necessary dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      bash \
-      git \
-      gnupg \
-      make \
-      rsync \
-      tree \
-      wget \
-      unzip \
-      ruby \
-      ruby-dev \
-      build-essential \
+    bash \
+    git \
+    gnupg \
+    make \
+    rsync \
+    tree \
+    wget \
+    unzip \
+    ruby \
+    ruby-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Add the safe.directory config for Git
@@ -57,7 +47,7 @@ RUN gem install jekyll -v 4.3.3
 RUN mkdir -p /etc/apt/keyrings \
     && wget -qO /etc/apt/keyrings/google-linux-signing-key.gpg https://dl.google.com/linux/linux_signing_key.pub \
     && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux-signing-key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
-       > /etc/apt/sources.list.d/google-chrome.list \
+    > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
@@ -68,11 +58,10 @@ WORKDIR ${DCKRSRC}
 # copy source
 COPY . .
 
-# install local filter-notebook package without changing WORKDIR
-RUN pip install --no-cache-dir -e ./_jupyter/scripts/filter_notebook
-
-# install requirements (installs sbase)
-RUN pip3 install --no-cache-dir -r tests/requirements.txt
+# install poetry deps (THIS replaces requirements.txt)
+RUN pip install --no-cache-dir poetry \
+    && poetry config virtualenvs.create false \
+    && poetry install --with utils,dev --no-root
 
 # get chromedriver (sbase installed by requirements.txt)
 RUN sbase install chromedriver

@@ -312,7 +312,7 @@ endef
 # testing-related variables
 USE_NBQA ?= true
 NBQA_NOTEBOOKS ?= $(NOTEBOOKS)
-PYTHON_TARGETS := tests/ _jupyter/scripts/
+PYTHON_TARGETS := tests/
 PYTHON_FILES := $(shell find $(PYTHON_TARGETS) -type f -name '*.py')
 
 # linter command function that dynamically decides to use nbqa or not
@@ -766,12 +766,11 @@ black:
 
 # flake8 - Handle both Python and Notebooks
 flake8:
-	@ $(call BUILD_LINTER_COMMAND,flake8 --config=tests/.flake8)
+	@ $(call BUILD_LINTER_COMMAND,flake8)
 
 # mypy - Handle both Python and Notebooks
 mypy:
-	@ $(call BUILD_LINTER_COMMAND,mypy --strict --warn-unreachable --pretty \
-	--show-column-numbers --show-error-context --ignore-missing-imports)
+	@ $(call BUILD_LINTER_COMMAND,mypy)
 
 # install act command
 install-act:
